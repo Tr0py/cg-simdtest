@@ -8,7 +8,7 @@
 #include <ctime>
 
 /* size for A and B. */
-#define SIZE 10
+#define SIZE 256
 
 using namespace std;
 
