@@ -12,7 +12,7 @@
 
 using namespace std;
 
-const double NEARZERO = 1.0e-10;       // interpretation of "zero"
+const double NEARZERO = 1.0e-12;       // interpretation of "zero"
 
 using vec    = vector<double>;         // vector
 using matrix = vector<vec>;            // matrix (=collection of (row) vectors)
@@ -43,7 +43,7 @@ int main()
 
 	// Initialize A and B
 	for (i=0; i < SIZE; i++) {
-		B[i] = rand() % 100;
+		B[i] = rand() % 50;
 	}
 	for (i=0; i < SIZE; i++) {
 		for (j=0; j < SIZE; j++) {
@@ -163,18 +163,18 @@ vec conjugateGradientSolver( const matrix &A, const vec &B )
 	vec P = R;
 	int k = 0;
 
-	while ( k < n )
+	while ( 1 )
 	{
 		vec Rold = R;                                         // Store previous residual
 		vec AP = matrixTimesVector( A, P );
 
-		double alpha = innerProduct( R, R ) / max( innerProduct( P, AP ), NEARZERO );
+		double alpha = innerProduct( R, R ) / innerProduct( P, AP );
 		X = vectorCombination( 1.0, X, alpha, P );            // Next estimate of solution
 		R = vectorCombination( 1.0, R, -alpha, AP );          // Residual
 
 		if ( vectorNorm( R ) < TOLERANCE ) break;             // Convergence test
 
-		double beta = innerProduct( R, R ) / max( innerProduct( Rold, Rold ), NEARZERO );
+		double beta = innerProduct( R, R ) / innerProduct( Rold, Rold );
 		P = vectorCombination( 1.0, R, beta, P );             // Next gradient
 		k++;
 	}
