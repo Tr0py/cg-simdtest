@@ -1,3 +1,10 @@
+//
+//  main.cpp
+//  simd1054
+//
+//  Created by Jane on 4/9/21.
+//
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -6,16 +13,28 @@
 #include <algorithm>
 #include <numeric>
 #include <ctime>
+#include <stdlib.h>
+#include <xmmintrin.h>
+#include <pmmintrin.h>
 
 /* size for A and B. */
-#define SIZE 700
+#ifndef SIZE
+#define SIZE 256
+#endif
+#define LOOPTIME 10
+//#define SIMD_OPT
 
-using namespace std;
+using namespace std; //用std
 
 const float NEARZERO = 1.0e-12;       // interpretation of "zero"
 
-using vec    = vector<float>;         // vector
-using matrix = vector<vec>;            // matrix (=collection of (row) vectors)
+
+//using vec    = vector<float>;         // vector using=typedef
+typedef vector<float> vec;
+
+//using matrix = vector<vec>;            // matrix (=collection of (row) vectors)
+typedef vector<vec> matrix;
+
 
 // Prototypes
 void print( string title, const vec &V );
@@ -23,21 +42,21 @@ void print( string title, const matrix &A );
 vec matrixTimesVector( const matrix &A, const vec &V );
 vec vectorCombination( float a, const vec &U, float b, const vec &V );
 float innerProduct( const vec &U, const vec &V );
-float vectorNorm( const vec &V );
+float vectorNorm( const vec &V ); //模，平方相加开根号
 vec conjugateGradientSolver( const matrix &A, const vec &B );
-matrix positiveDefiniteMatrix( const matrix &A);
+matrix positiveDefiniteMatrix( const matrix &A); //正定 A*A转置
 
 
 //======================================================================
 
 
-int main()
+int main() //初始化A b，cg解x（计时）
 {
 	int i, j;
 	matrix A;
-	vec B(SIZE), tmp(SIZE);
+	vec B(SIZE), tmp(SIZE); //tmp初始化
 	clock_t startTime, endTime;
-
+	vec X[LOOPTIME];
 	// Fixed random seed.
 	srand(0);
 
@@ -50,23 +69,25 @@ int main()
 			tmp[j] = rand() % 5;
 		}
 		//print( "\ntmp:", tmp );
-		A.push_back(tmp);
+		A.push_back(tmp); //每次push一行，一开始A是0*0，push第一次就变成1*10，10次就是10*10
 	}
-	A = positiveDefiniteMatrix(A);
+	A = positiveDefiniteMatrix(A); //正定
 
 
 	// Start timer
 	startTime = clock();
-	vec X = conjugateGradientSolver( A, B );
+	for (int i=0; i < LOOPTIME; i++) {
+		X[i] = conjugateGradientSolver( A, B );
+	}
 	endTime = clock();
 
-	cout << "Solves AX = B\n";
-	print( "\nA:", A );
+	//cout << "Solves AX = B\n";
+	//print( "\nA:", A );
 	print( "\nB:", B );
-	print( "\nX:", X );
+	//print( "\nX:", X );
 
-	print( "\nCheck AX:", matrixTimesVector( A, X ) );
-	cout << "The run time is: " <<(float)(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
+	print( "\nCheck AX:", matrixTimesVector( A, X[0] ) ); //检查
+	cout << "The run time is: " <<(float)(endTime - startTime) / CLOCKS_PER_SEC << " s" << endl;
 }
 
 
@@ -80,7 +101,7 @@ void print( string title, const vec &V )
 	int n = V.size();
 	for ( int i = 0; i < n; i++ )
 	{
-		float x = V[i];   if ( abs( x ) < NEARZERO ) x = 0.0;
+		float x = V[i];   if ( abs( x ) < NEARZERO ) x = 0.0; //一个非常小的数，就记为0
 		cout << x << '\t';
 	}
 	cout << '\n';
@@ -110,7 +131,7 @@ void print( string title, const matrix &A )
 //======================================================================
 
 
-vec matrixTimesVector( const matrix &A, const vec &V )     // Matrix times vector
+vec matrixTimesVector( const matrix &A, const vec &V )     // Matrix times vector 矩阵*向量
 {
 	int n = A.size();
 	vec C( n );
@@ -122,23 +143,50 @@ vec matrixTimesVector( const matrix &A, const vec &V )     // Matrix times vecto
 //======================================================================
 
 
-vec vectorCombination( float a, const vec &U, float b, const vec &V )        // Linear combination of vectors
+#ifdef SIMD_OPT
+vec vectorCombination(float a, const vec &U, float b, const vec &V) // Linear a*U+b*V
+{
+	int n = U.size();
+	vec W(n), aU(n), bV(n);
+	for(int i = 0; i<n; i++){
+		aU[i] = a * U[i];
+		bV[i] = b * V[i];
+	}
+	__m128 m1, m2, m3;
+	float *p1 = aU.data(), *p2 = bV.data(), *p3 = W.data();
+	int nloop = n/4;
+
+	for(int i = 0; i<nloop; i++){
+		m1 = _mm_load_ps(p1);
+		m2 = _mm_load_ps(p2);
+		m3 = _mm_add_ps(m1, m2);
+		_mm_store_ps(p3, m3);
+		p1 += 4;
+		p2 += 4;
+		p3 += 4;
+	}
+	return W;
+}
+#else
+vec vectorCombination( float a, const vec &U, float b, const vec &V )        // Linear a*U+b*V combination of vectors
 {
 	int n = U.size();
 	vec W( n );
 	for ( int j = 0; j < n; j++ ) W[j] = a * U[j] + b * V[j];
 	return W;
 }
+#endif
 
 
 //======================================================================
 
 
-float innerProduct( const vec &U, const vec &V )          // Inner product of U and V
+float innerProduct( const vec &U, const vec &V )          // Inner product of U and V 内积
 {
 	return inner_product( U.begin(), U.end(), V.begin(), 0.0 );
 }
 
+//std库里内积的方法，U的开始到结束，V的开始到结束，这个是自带优化的，
 
 //======================================================================
 
@@ -185,11 +233,11 @@ vec conjugateGradientSolver( const matrix &A, const vec &B )
 
 //======================================================================
 // ret = A * At
-matrix positiveDefiniteMatrix( const matrix &A ) 
+matrix positiveDefiniteMatrix( const matrix &A )
 {
 	int i, j, ii;
 	matrix At(A), ret(A);
-	
+
 
 	// transpose A
 	for (i=0; i < SIZE; ++i) {
@@ -213,3 +261,4 @@ matrix positiveDefiniteMatrix( const matrix &A )
 	}
 	return ret;
 }
+
