@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#include "align.h"
 
 /* size for A and B. */
 #ifndef SIZE
@@ -33,7 +34,7 @@ const float NEARZERO = 1.0e-12;       // interpretation of "zero"
 
 
 //using vec    = vector<float>;         // vector using=typedef
-typedef vector<float> vec;
+typedef vector<float, alignocator<float,32>> vec ;
 
 //using matrix = vector<vec>;            // matrix (=collection of (row) vectors)
 typedef vector<vec> matrix;
@@ -59,7 +60,7 @@ int main() //初始化A b，cg解x（计时）
 	matrix A;
 	vec B(SIZE), tmp(SIZE); //tmp初始化
 	clock_t startTime, endTime;
-	vec X[LOOPTIME];
+	vec X;
 	// Fixed random seed.
 	srand(time(NULL));
 
@@ -80,7 +81,7 @@ int main() //初始化A b，cg解x（计时）
 	// Start timer
 	startTime = clock();
 	for (int i=0; i < LOOPTIME; i++) {
-		X[i] = conjugateGradientSolver( A, B );
+		X = conjugateGradientSolver( A, B );
 	}
 	endTime = clock();
 
@@ -89,7 +90,7 @@ int main() //初始化A b，cg解x（计时）
 	print( "\nB:", B );
 	//print( "\nX:", X );
 
-	print( "\nCheck AX:", matrixTimesVector( A, X[0] ) ); //检查
+	print( "\nCheck AX:", matrixTimesVector( A, X ) ); //检查
 	cout << "The run time is: " <<(float)(endTime - startTime) / CLOCKS_PER_SEC << " s" << endl;
 }
 
@@ -157,10 +158,10 @@ vec vectorCombination(float a, vec &U, float b, vec &V) // Linear a*U+b*V
 
 	for(int i = 0; i<nloop; i++){
 		//bV[i] = b * V[i];
-		m1 = _mm256_loadu_ps(p1);
+		m1 = _mm256_load_ps(p1);
 		m2 = _mm256_set1_ps(b);
 		m3 = _mm256_mul_ps(m1, m2);
-		_mm256_storeu_ps(p3, m3);
+		_mm256_store_ps(p3, m3);
 		p1 += 8;
 		p3 += 8;
 	}
@@ -168,10 +169,10 @@ vec vectorCombination(float a, vec &U, float b, vec &V) // Linear a*U+b*V
 	p1 = U.data(), p2 = bV.data(), p3 = W.data();
 
 	for(int i = 0; i<nloop; i++){
-		m1 = _mm256_loadu_ps(p1);
-		m2 = _mm256_loadu_ps(p2);
+		m1 = _mm256_load_ps(p1);
+		m2 = _mm256_load_ps(p2);
 		m3 = _mm256_add_ps(m1, m2);
-		_mm256_storeu_ps(p3, m3);
+		_mm256_store_ps(p3, m3);
 		p1 += 8;
 		p2 += 8;
 		p3 += 8;
@@ -205,28 +206,28 @@ float innerProduct( const vec &U, const vec &V )          // Inner product of U 
 	float s = 0.0;
 	for (int i = 0; i < nloop; ++i)
 	{
-		m1 = _mm256_loadu_ps(p1);
-		m2 = _mm256_loadu_ps(p2);
+		m1 = _mm256_load_ps(p1);
+		m2 = _mm256_load_ps(p2);
 		m3 = _mm256_mul_ps(m1, m2);
-		_mm256_storeu_ps(p3, m3);
+		_mm256_store_ps(p3, m3);
 		p1 += 8;
 		p2 += 8;
 		p3 += 8;
 	}
 	// sum UV
 	__m256 m, sum;
-	float *data = UV.data(), *result = new float[8];
+	float *data = UV.data();
+	vec result(8);
 	sum = _mm256_setzero_ps();
 	for (int i = 0; i < nloop; ++i)
 	{
-		m = _mm256_loadu_ps(data + 8 * i);
+		m = _mm256_load_ps(data + 8 * i);
 		sum = _mm256_add_ps(sum, m);
 	}
 	sum = _mm256_hadd_ps(sum, sum);
 	sum = _mm256_hadd_ps(sum, sum);
-	_mm256_storeu_ps(result, sum);
+	_mm256_store_ps(result.data(), sum);
 	s = result[0];
-	delete result;
 	return s;
 
 
@@ -234,7 +235,7 @@ float innerProduct( const vec &U, const vec &V )          // Inner product of U 
 
 #else
 
-float innerPr duct( const vec &U, const vec &V )          // Inner product of U and V 内积
+float innerProduct( const vec &U, const vec &V )          // Inner product of U and V 内积
 {
 	return inner_product( U.begin(), U.end(), V.begin(), 0.0 );
 }
