@@ -151,30 +151,30 @@ vec vectorCombination(float a, vec &U, float b, vec &V) // Linear a*U+b*V
 {
 	int n = U.size();
 	vec W(n), bV(n);
-	__m128 m1, m2, m3;
-	int nloop = n/4;
+	__m256 m1, m2, m3;
+	int nloop = n/8;
 	float *p1 = V.data(), *p3 = bV.data(), *p2;
 
 	for(int i = 0; i<nloop; i++){
 		//bV[i] = b * V[i];
-		m1 = _mm_loadu_ps(p1);
-		m2 = _mm_set1_ps(b);
-		m3 = _mm_mul_ps(m1, m2);
-		_mm_storeu_ps(p3, m3);
-		p1 += 4;
-		p3 += 4;
+		m1 = _mm256_loadu_ps(p1);
+		m2 = _mm256_set1_ps(b);
+		m3 = _mm256_mul_ps(m1, m2);
+		_mm256_storeu_ps(p3, m3);
+		p1 += 8;
+		p3 += 8;
 	}
 
 	p1 = U.data(), p2 = bV.data(), p3 = W.data();
 
 	for(int i = 0; i<nloop; i++){
-		m1 = _mm_load_ps(p1);
-		m2 = _mm_load_ps(p2);
-		m3 = _mm_add_ps(m1, m2);
-		_mm_store_ps(p3, m3);
-		p1 += 4;
-		p2 += 4;
-		p3 += 4;
+		m1 = _mm256_loadu_ps(p1);
+		m2 = _mm256_loadu_ps(p2);
+		m3 = _mm256_add_ps(m1, m2);
+		_mm256_storeu_ps(p3, m3);
+		p1 += 8;
+		p2 += 8;
+		p3 += 8;
 	}
 	return W;
 }
@@ -198,33 +198,33 @@ float innerProduct( const vec &U, const vec &V )          // Inner product of U 
 	// multiply UV
 	int size = U.size();
 	vec UV(size);
-	__m128 m1, m2, m3;
+	__m256 m1, m2, m3;
 	const float *p1 = U.data(), *p2 = V.data();
 	float *p3 = UV.data();
-	int nloop = size / 4;
+	int nloop = size / 8;
 	float s = 0.0;
 	for (int i = 0; i < nloop; ++i)
 	{
-		m1 = _mm_loadu_ps(p1);
-		m2 = _mm_loadu_ps(p2);
-		m3 = _mm_mul_ps(m1, m2);
-		_mm_storeu_ps(p3, m3);
-		p1 += 4;
-		p2 += 4;
-		p3 += 4;
+		m1 = _mm256_loadu_ps(p1);
+		m2 = _mm256_loadu_ps(p2);
+		m3 = _mm256_mul_ps(m1, m2);
+		_mm256_storeu_ps(p3, m3);
+		p1 += 8;
+		p2 += 8;
+		p3 += 8;
 	}
 	// sum UV
-	__m128 m, sum;
-	float *data = UV.data(), *result = new float[4];
-	sum = _mm_setzero_ps();
+	__m256 m, sum;
+	float *data = UV.data(), *result = new float[8];
+	sum = _mm256_setzero_ps();
 	for (int i = 0; i < nloop; ++i)
 	{
-		m = _mm_loadu_ps(data + 4 * i);
-		sum = _mm_add_ps(sum, m);
+		m = _mm256_loadu_ps(data + 8 * i);
+		sum = _mm256_add_ps(sum, m);
 	}
-	sum = _mm_hadd_ps(sum, sum);
-	sum = _mm_hadd_ps(sum, sum);
-	_mm_storeu_ps(result, sum);
+	sum = _mm256_hadd_ps(sum, sum);
+	sum = _mm256_hadd_ps(sum, sum);
+	_mm256_storeu_ps(result, sum);
 	s = result[0];
 	delete result;
 	return s;

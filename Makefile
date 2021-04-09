@@ -1,5 +1,5 @@
 simd-gc:
-	g++ -o main main.cpp -msse3 --std=c++17 -O3 $(ARGS) 
+	g++ -o main main.cpp -mavx --std=c++17 -O0 $(ARGS)  -g
 
 disasm:
 	objdump -dSl main > disasm
