@@ -12,18 +12,18 @@
 
 using namespace std;
 
-const double NEARZERO = 1.0e-12;       // interpretation of "zero"
+const float NEARZERO = 1.0e-12;       // interpretation of "zero"
 
-using vec    = vector<double>;         // vector
+using vec    = vector<float>;         // vector
 using matrix = vector<vec>;            // matrix (=collection of (row) vectors)
 
 // Prototypes
 void print( string title, const vec &V );
 void print( string title, const matrix &A );
 vec matrixTimesVector( const matrix &A, const vec &V );
-vec vectorCombination( double a, const vec &U, double b, const vec &V );
-double innerProduct( const vec &U, const vec &V );
-double vectorNorm( const vec &V );
+vec vectorCombination( float a, const vec &U, float b, const vec &V );
+float innerProduct( const vec &U, const vec &V );
+float vectorNorm( const vec &V );
 vec conjugateGradientSolver( const matrix &A, const vec &B );
 matrix positiveDefiniteMatrix( const matrix &A);
 
@@ -66,7 +66,7 @@ int main()
 	print( "\nX:", X );
 
 	print( "\nCheck AX:", matrixTimesVector( A, X ) );
-	cout << "The run time is: " <<(double)(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
+	cout << "The run time is: " <<(float)(endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
 }
 
 
@@ -80,7 +80,7 @@ void print( string title, const vec &V )
 	int n = V.size();
 	for ( int i = 0; i < n; i++ )
 	{
-		double x = V[i];   if ( abs( x ) < NEARZERO ) x = 0.0;
+		float x = V[i];   if ( abs( x ) < NEARZERO ) x = 0.0;
 		cout << x << '\t';
 	}
 	cout << '\n';
@@ -99,7 +99,7 @@ void print( string title, const matrix &A )
 	{
 		for ( int j = 0; j < n; j++ )
 		{
-			double x = A[i][j];   if ( abs( x ) < NEARZERO ) x = 0.0;
+			float x = A[i][j];   if ( abs( x ) < NEARZERO ) x = 0.0;
 			cout << x << '\t';
 		}
 		cout << '\n';
@@ -122,7 +122,7 @@ vec matrixTimesVector( const matrix &A, const vec &V )     // Matrix times vecto
 //======================================================================
 
 
-vec vectorCombination( double a, const vec &U, double b, const vec &V )        // Linear combination of vectors
+vec vectorCombination( float a, const vec &U, float b, const vec &V )        // Linear combination of vectors
 {
 	int n = U.size();
 	vec W( n );
@@ -134,7 +134,7 @@ vec vectorCombination( double a, const vec &U, double b, const vec &V )        /
 //======================================================================
 
 
-double innerProduct( const vec &U, const vec &V )          // Inner product of U and V
+float innerProduct( const vec &U, const vec &V )          // Inner product of U and V
 {
 	return inner_product( U.begin(), U.end(), V.begin(), 0.0 );
 }
@@ -143,7 +143,7 @@ double innerProduct( const vec &U, const vec &V )          // Inner product of U
 //======================================================================
 
 
-double vectorNorm( const vec &V )                          // Vector norm
+float vectorNorm( const vec &V )                          // Vector norm
 {
 	return sqrt( innerProduct( V, V ) );
 }
@@ -154,7 +154,7 @@ double vectorNorm( const vec &V )                          // Vector norm
 
 vec conjugateGradientSolver( const matrix &A, const vec &B )
 {
-	double TOLERANCE = 1.0e-12;
+	float TOLERANCE = 1.0e-12;
 
 	int n = A.size();
 	vec X( n, 0.0 );
@@ -168,13 +168,13 @@ vec conjugateGradientSolver( const matrix &A, const vec &B )
 		vec Rold = R;                                         // Store previous residual
 		vec AP = matrixTimesVector( A, P );
 
-		double alpha = innerProduct( R, R ) / innerProduct( P, AP );
+		float alpha = innerProduct( R, R ) / innerProduct( P, AP );
 		X = vectorCombination( 1.0, X, alpha, P );            // Next estimate of solution
 		R = vectorCombination( 1.0, R, -alpha, AP );          // Residual
 
 		if ( vectorNorm( R ) < TOLERANCE ) break;             // Convergence test
 
-		double beta = innerProduct( R, R ) / innerProduct( Rold, Rold );
+		float beta = innerProduct( R, R ) / innerProduct( Rold, Rold );
 		P = vectorCombination( 1.0, R, beta, P );             // Next gradient
 		k++;
 	}
