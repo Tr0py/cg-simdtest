@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <x86intrin.h>
 #include <vector>
 #include <algorithm>
 #include <numeric>
@@ -21,7 +22,9 @@
 #ifndef SIZE
 #define SIZE 256
 #endif
+#ifndef LOOPTIME
 #define LOOPTIME 10
+#endif
 //#define SIMD_OPT
 
 using namespace std; //用std
@@ -58,7 +61,7 @@ int main() //初始化A b，cg解x（计时）
 	clock_t startTime, endTime;
 	vec X[LOOPTIME];
 	// Fixed random seed.
-	srand(0);
+	srand(time(NULL));
 
 	// Initialize A and B
 	for (i=0; i < SIZE; i++) {
@@ -144,17 +147,25 @@ vec matrixTimesVector( const matrix &A, const vec &V )     // Matrix times vecto
 
 
 #ifdef SIMD_OPT
-vec vectorCombination(float a, const vec &U, float b, const vec &V) // Linear a*U+b*V
+vec vectorCombination(float a, vec &U, float b, vec &V) // Linear a*U+b*V
 {
 	int n = U.size();
-	vec W(n), aU(n), bV(n);
-	for(int i = 0; i<n; i++){
-		aU[i] = a * U[i];
-		bV[i] = b * V[i];
-	}
+	vec W(n), bV(n);
 	__m128 m1, m2, m3;
-	float *p1 = aU.data(), *p2 = bV.data(), *p3 = W.data();
 	int nloop = n/4;
+	float *p1 = V.data(), *p3 = bV.data(), *p2;
+
+	for(int i = 0; i<nloop; i++){
+		//bV[i] = b * V[i];
+		m1 = _mm_loadu_ps(p1);
+		m2 = _mm_set1_ps(b);
+		m3 = _mm_mul_ps(m1, m2);
+		_mm_storeu_ps(p3, m3);
+		p1 += 4;
+		p3 += 4;
+	}
+
+	p1 = U.data(), p2 = bV.data(), p3 = W.data();
 
 	for(int i = 0; i<nloop; i++){
 		m1 = _mm_load_ps(p1);
@@ -181,10 +192,37 @@ vec vectorCombination( float a, const vec &U, float b, const vec &V )        // 
 //======================================================================
 
 
+#ifdef SIMD_OPT
+float innerProduct( const vec &U, const vec &V )          // Inner product of U and V 内积
+{
+	// multiply UV
+	int size = U.size();
+	vec UV(size);
+	__m128 m1, m2, m3;
+	float *p1 = U.data(), *p2 = V.data(), *p3 = UV.data();
+	int nloop = size / 4;
+	float sum = 0.0;
+	for (int i = 0; i < nloop; ++i)
+	{
+		m1 = _mm_loadu_ps(p1);
+		m2 = _mm_loadu_ps(p2);
+		m3 = _mm_mul_ps(m1, m2);
+		_mm_storeu_ps(p3, m3);
+		p1 += 4;
+		p2 += 4;
+		p3 += 4;
+	}
+	// sum UV
+	
+}
+
+#else
+
 float innerProduct( const vec &U, const vec &V )          // Inner product of U and V 内积
 {
 	return inner_product( U.begin(), U.end(), V.begin(), 0.0 );
 }
+#endif
 
 //std库里内积的方法，U的开始到结束，V的开始到结束，这个是自带优化的，
 
