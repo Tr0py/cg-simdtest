@@ -199,9 +199,10 @@ float innerProduct( const vec &U, const vec &V )          // Inner product of U 
 	int size = U.size();
 	vec UV(size);
 	__m128 m1, m2, m3;
-	float *p1 = U.data(), *p2 = V.data(), *p3 = UV.data();
+	const float *p1 = U.data(), *p2 = V.data();
+	float *p3 = UV.data();
 	int nloop = size / 4;
-	float sum = 0.0;
+	float s = 0.0;
 	for (int i = 0; i < nloop; ++i)
 	{
 		m1 = _mm_loadu_ps(p1);
@@ -213,12 +214,27 @@ float innerProduct( const vec &U, const vec &V )          // Inner product of U 
 		p3 += 4;
 	}
 	// sum UV
-	
+	__m128 m, sum;
+	float *data = UV.data(), *result = new float[4];
+	sum = _mm_setzero_ps();
+	for (int i = 0; i < nloop; ++i)
+	{
+		m = _mm_loadu_ps(data + 4 * i);
+		sum = _mm_add_ps(sum, m);
+	}
+	sum = _mm_hadd_ps(sum, sum);
+	sum = _mm_hadd_ps(sum, sum);
+	_mm_storeu_ps(result, sum);
+	s = result[0];
+	delete result;
+	return s;
+
+
 }
 
 #else
 
-float innerProduct( const vec &U, const vec &V )          // Inner product of U and V 内积
+float innerPr duct( const vec &U, const vec &V )          // Inner product of U and V 内积
 {
 	return inner_product( U.begin(), U.end(), V.begin(), 0.0 );
 }
